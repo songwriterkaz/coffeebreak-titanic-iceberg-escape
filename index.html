@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Coffeebreak Titanic: Iceberg Escape</title><link rel="icon" href="logo.png"><link rel="stylesheet" href="common.css">
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script></head><body>
+<img id="logo" src="logo.png" alt="Coffeebreak"><div id="hud"></div>
+<div id="menu"><img src="logo.png" alt="Coffeebreak"><h1>Coffeebreak Titanic: Iceberg Escape</h1>
+<p>Steer the great ship through the icy sea. Dodge the icebergs and collect pink Coffeebreak cups for bonus points. The sea gets faster the further you sail.</p>
+<p>Mac: A and D or arrow keys. Phone: hold the left or right side of the screen.</p><p id="best"></p>
+<button class="btn" id="play">Set sail</button></div>
+<script src="common.js"></script>
+<script type="module">
+import * as THREE from 'three';import {makeShip} from './shipmodel.js';
+const R=new THREE.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);document.body.appendChild(R.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x0e1a3a);scene.fog=new THREE.Fog(0x0e1a3a,60,260);
+const cam=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,600);cam.position.set(0,18,30);cam.lookAt(0,0,-30);
+scene.add(new THREE.HemisphereLight(0xbcd8ff,0x101830,0.9));const dl=new THREE.DirectionalLight(0xffe0f0,1);dl.position.set(20,40,10);scene.add(dl);
+const sea=new THREE.Mesh(new THREE.PlaneGeometry(400,800,1,1),new THREE.MeshPhongMaterial({color:0x123e6b}));sea.rotation.x=-Math.PI/2;sea.position.y=-1;scene.add(sea);
+const ship=makeShip(THREE);scene.add(ship);
+const bergG=new THREE.DodecahedronGeometry(1,0),bergM=new THREE.MeshLambertMaterial({color:0xe8f6ff,flatShading:true});
+const cupM=new THREE.MeshLambertMaterial({color:0xff4fa3,emissive:0x661133});
+let objs=[],x=0,vx=0,spd,dist,score,alive=false,best=+localStorage.cbIceBest||0;
+document.getElementById('best').textContent=best?'Best score '+best:'';
+const hud=document.getElementById('hud');let L=false,Rt=false;
+addEventListener('touchstart',e=>{for(const t of e.touches){if(t.clientX<innerWidth/2)L=true;else Rt=true}},{passive:true});
+addEventListener('touchend',e=>{L=Rt=false;for(const t of e.touches){if(t.clientX<innerWidth/2)L=true;else Rt=true}});
+function spawn(z){const r=Math.random();if(r<0.75){const m=new THREE.Mesh(bergG,bergM);const s=3+Math.random()*5;m.scale.set(s,s*1.3,s);m.rotation.y=Math.random()*6;m.position.set((Math.random()-0.5)*90,s*0.3,z);m.userData={r:s*0.9,berg:1};scene.add(m);objs.push(m)}
+ else{const m=new THREE.Mesh(new THREE.CylinderGeometry(1.2,0.9,2,12),cupM);m.position.set((Math.random()-0.5)*80,1,z);m.userData={r:2};scene.add(m);objs.push(m)}}
+function start(){objs.forEach(o=>scene.remove(o));objs=[];for(let z=-60;z>-300;z-=14)spawn(z);x=0;vx=0;spd=25;dist=0;score=0;alive=true;document.getElementById('menu').style.display='none'}
+document.getElementById('play').onclick=start;
+const clk=new THREE.Clock();let farZ=-300;
+function loop(){requestAnimationFrame(loop);const dt=Math.min(clk.getDelta(),0.05),t=clk.elapsedTime;
+ if(alive){const a=CB.axis();const dir=a.x+(L?-1:0)+(Rt?1:0);vx+=(dir*30-vx)*dt*3;x=Math.max(-45,Math.min(45,x+vx*dt));
+  spd+=dt*0.6;dist+=spd*dt;const dz=spd*dt;farZ+=dz;
+  for(const o of objs){o.position.z+=dz;if(!o.userData.berg)o.rotation.y+=dt*3;
+   const dx=o.position.x-x,dzz=o.position.z;
+   if(o.visible&&Math.abs(dx)<o.userData.r+2.6&&dzz>-15-o.userData.r&&dzz<11+o.userData.r){if(o.userData.berg){alive=false;end()}else{o.visible=false;score+=50}}}
+  objs=objs.filter(o=>{if(o.position.z>40){scene.remove(o);return false}return true});
+  while(farZ>-286){farZ-=14;spawn(-300);}
+  score+=dz*0.2;hud.textContent='Score '+Math.floor(score)+'  |  '+Math.floor(dist)+' m  |  '+(spd*0.8).toFixed(0)+' knots'}
+ ship.position.x=x;ship.rotation.z=-vx*0.01;ship.rotation.y=-vx*0.008;ship.position.y=Math.sin(t*2)*0.15;const por=innerWidth<innerHeight;cam.position.set(x,por?32:18,por?44:30);cam.lookAt(x,0,por?-20:-30);
+ R.render(scene,cam)}
+function end(){const s=Math.floor(score);if(s>best){best=s;localStorage.cbIceBest=s}const m=document.getElementById('menu');m.style.display='flex';
+ m.querySelector('h1').textContent='The ship touched an iceberg';m.querySelector('p').textContent='Everyone is safe and warm with a cup of Coffeebreak cocoa. Your score was '+s+'.';
+ document.getElementById('best').textContent='Best score '+best;document.getElementById('play').textContent='Sail again'}
+loop();addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)});
+</script></body></html>
